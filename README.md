@@ -13,8 +13,8 @@ This repository contains the architecture for implementing a mineral flotation d
 ```
 mineral_flotation/
 ├── data/
-│   ├── processed_data/
-│   └── raw_data/
+│   ├── processed/
+│   └── raw/
 ├── metrics/
 ├── models/
 │   ├── data/
