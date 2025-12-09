@@ -1,0 +1,26 @@
+[project]
+name = "mineral-flotation"
+version = "0.1.0"
+description = "Mineral flotation data modeling using DVC and DagsHub"
+requires-python = ">=3.11"
+dependencies = [
+    "dagshub==0.6.3",
+    "dvc==3.64.2",
+    "dvc-s3==3.2.2",
+    "matplotlib==3.10.7",
+    "numpy==2.3.5",
+    "pandas==2.3.3",
+    "scikit-learn==1.7.2",
+    "seaborn==0.13.2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "jupyter==1.1.1",
+    "black==25.12.0",
+]
+
