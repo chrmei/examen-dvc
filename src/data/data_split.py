@@ -43,6 +43,30 @@ def split_data(
     df = pd.read_csv(input_path)
     print(f"Data shape: {df.shape}")
 
+    # Validate data quality
+    print("\nValidating data quality...")
+    
+    # Check for missing values
+    missing_values = df.isna().sum().sum()
+    if missing_values > 0:
+        raise ValueError(
+            f"Dataset contains {missing_values} missing values. "
+            "Please run validate_data.py to handle missing values before splitting."
+        )
+    
+    # Check for infinite values in numeric columns
+    numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns
+    if len(numeric_cols) > 0:
+        import numpy as np
+        inf_values = np.isinf(df[numeric_cols]).sum().sum()
+        if inf_values > 0:
+            raise ValueError(
+                f"Dataset contains {inf_values} infinite values. "
+                "Please run validate_data.py to handle infinite values before splitting."
+            )
+    
+    print("✓ Data validation passed: no missing or infinite values")
+
     # Extract target variable (last column: silica_concentrate)
     target_column = df.columns[-1]
     print(f"Target variable: {target_column}")

@@ -1,10 +1,10 @@
 """
 Feature Engineering Script
 
-This script loads the raw mineral flotation data and creates engineered features
+This script loads the validated mineral flotation data and creates engineered features
 including time-based features and interaction/ratio features.
 
-Input: data/raw/raw.csv
+Input: data/processed/raw_validated.csv (or data/raw/raw.csv)
 Output: data/processed/raw_engineered.csv
 """
 
@@ -15,59 +15,76 @@ import argparse
 
 
 def engineer_features(
-    input_path: str = "data/raw/raw.csv",
+    input_path: str = "data/processed/raw_validated.csv",
     output_path: str = "data/processed/raw_engineered.csv",
+    use_time_features: bool = False,
 ):
     """
-    Create engineered features from raw data.
+    Create engineered features from validated data.
 
     Parameters:
     -----------
     input_path : str
-        Path to the raw CSV file
+        Path to the validated CSV file (default: data/processed/raw_validated.csv)
     output_path : str
         Path to save the engineered CSV file
+    use_time_features : bool
+        Whether to add time-series features (cyclical encodings). Set to False to
+        produce a version without time features (for comparison / ablation).
     """
     # Create output directory if it doesn't exist
     output_file = Path(output_path)
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
-    # Load raw data
+    # Load validated data
     print(f"Loading data from {input_path}...")
     df = pd.read_csv(input_path)
     print(f"Original data shape: {df.shape}")
 
-    # Convert date column to datetime format
-    print("\nConverting date column to datetime...")
-    df['date'] = pd.to_datetime(df['date'])
+    # Store original columns before adding new features
+    original_cols = df.columns.tolist()
 
-    # Extract time-based features
-    print("Extracting time-based features...")
-    
-    # Extract base time features (temporary, will be converted to cyclical)
-    hour = df['date'].dt.hour  # Hour of day (0-23)
-    day_of_week = df['date'].dt.dayofweek  # Day of week (0-6, Monday=0)
-    month = df['date'].dt.month  # Month (1-12)
-    day = df['date'].dt.day  # Day of month (1-31)
-    
-    # Create cyclical encodings for month, day, and hour
-    print("Creating cyclical encodings for time features...")
-    
-    # Month: cyclical encoding (handles missing months gracefully)
-    df['month_sin'] = np.sin(2 * np.pi * month / 12)
-    df['month_cos'] = np.cos(2 * np.pi * month / 12)
-    
-    # Day of month: cyclical encoding
-    df['day_sin'] = np.sin(2 * np.pi * day / 31)
-    df['day_cos'] = np.cos(2 * np.pi * day / 31)
-    
-    # Hour: cyclical encoding
-    df['hour_sin'] = np.sin(2 * np.pi * hour / 24)
-    df['hour_cos'] = np.cos(2 * np.pi * hour / 24)
-    
-    # Keep day_of_week and is_weekend as-is (they're already well-represented)
-    df['day_of_week'] = day_of_week
-    df['is_weekend'] = (day_of_week >= 5).astype(int)  # Boolean flag (1 if Saturday/Sunday, 0 otherwise)
+    # Validate that date column exists
+    if 'date' not in df.columns:
+        raise ValueError("Date column not found in dataset. Please run validate_data.py first.")
+
+    # Convert date column to datetime format (if not already datetime)
+    print("\nConverting date column to datetime...")
+    if not pd.api.types.is_datetime64_any_dtype(df['date']):
+        df['date'] = pd.to_datetime(df['date'], errors='coerce')
+        # Check for any remaining invalid dates
+        invalid_dates = df['date'].isna().sum()
+        if invalid_dates > 0:
+            raise ValueError(f"Found {invalid_dates} invalid dates after conversion. Please run validate_data.py first.")
+    else:
+        print("Date column is already in datetime format")
+
+    if use_time_features:
+        # Extract time-based features
+        print("Extracting time-based features (cyclical encodings)...")
+
+        hour = df["date"].dt.hour  # Hour of day (0-23)
+        day_of_week = df["date"].dt.dayofweek  # Day of week (0-6, Monday=0)
+        month = df["date"].dt.month  # Month (1-12)
+        day = df["date"].dt.day  # Day of month (1-31)
+
+        # Month: cyclical encoding (handles missing months gracefully)
+        df["month_sin"] = np.sin(2 * np.pi * month / 12)
+        df["month_cos"] = np.cos(2 * np.pi * month / 12)
+
+        # Day of month: cyclical encoding
+        df["day_sin"] = np.sin(2 * np.pi * day / 31)
+        df["day_cos"] = np.cos(2 * np.pi * day / 31)
+
+        # Hour: cyclical encoding
+        df["hour_sin"] = np.sin(2 * np.pi * hour / 24)
+        df["hour_cos"] = np.cos(2 * np.pi * hour / 24)
+
+        # day_of_week and is_weekend remain categorical-like but low-cardinality
+        df["day_of_week"] = day_of_week
+        df["is_weekend"] = (day_of_week >= 5).astype(int)
+    else:
+        print("Time-based feature engineering disabled; skipping cyclic encodings.")
 
     # Create interaction/ratio features
     print("Creating interaction/ratio features...")
@@ -91,12 +108,13 @@ def engineer_features(
     # ph_density_interaction: Product of ore_pulp_pH and ore_pulp_density
     df['ph_density_interaction'] = df['ore_pulp_pH'] * df['ore_pulp_density']
 
+    # Calculate new features added
+    new_features = [col for col in df.columns if col not in original_cols]
+    
     print(f"\nEngineered data shape: {df.shape}")
-    print(f"New features added: {df.shape[1] - len(pd.read_csv(input_path).columns)}")
+    print(f"New features added: {len(new_features)}")
     
     # Display new feature names
-    original_cols = pd.read_csv(input_path).columns.tolist()
-    new_features = [col for col in df.columns if col not in original_cols]
     print(f"\nNew features created:")
     for feat in new_features:
         print(f"  - {feat}")
@@ -120,8 +138,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--input",
         type=str,
-        default="data/raw/raw.csv",
-        help="Path to raw CSV file (default: data/raw/raw.csv)",
+        default="data/processed/raw_validated.csv",
+        help="Path to validated CSV file (default: data/processed/raw_validated.csv)",
     )
     parser.add_argument(
         "--output",
@@ -129,11 +147,24 @@ if __name__ == "__main__":
         default="data/processed/raw_engineered.csv",
         help="Path to save engineered CSV file (default: data/processed/raw_engineered.csv)",
     )
+    parser.add_argument(
+        "--use-time-features",
+        action="store_true",
+        default=False,
+        help="Enable cyclic time-based features (default: enabled)",
+    )
+    parser.add_argument(
+        "--no-time-features",
+        action="store_false",
+        dest="use_time_features",
+        help="Disable time-based feature engineering",
+    )
 
     args = parser.parse_args()
 
     engineer_features(
         input_path=args.input,
         output_path=args.output,
+        use_time_features=args.use_time_features,
     )
 
