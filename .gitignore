@@ -1,2 +1,38 @@
-/venv
-/clean_data.csv
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+venv/
+
+# DVC (exclude .dvc directory but keep .dvc/config tracked)
+.dvc/*
+!.dvc/config
+!dvc.yaml
+!dvc.lock
+
+# Data files
+data/raw/*
+data/processed/*
+
+# Model files
+models/**/*.pkl
+!models/**/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log
+clean_data.csv
