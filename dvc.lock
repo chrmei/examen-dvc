@@ -144,6 +144,10 @@ stages:
       hash: md5
       md5: 987ed64a5c92322355cf111047a2fc05
       size: 571137
+    - path: models/models/trained_model_with_history.pkl
+      hash: md5
+      md5: 48ab78f7bececf107ac2dc79b05ee80d
+      size: 580296
   evaluate:
     cmd: uv run python src/models/evaluate.py
     deps:

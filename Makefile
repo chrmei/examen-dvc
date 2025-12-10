@@ -1,4 +1,4 @@
-.PHONY: help install sync lock run-pipeline clean test
+.PHONY: help install sync lock dvc-run-pipeline clean test dvc-push dvc-pull dvc-status dvc-dag pipeline-and-push
 
 help:
 	@echo "Available targets:"
@@ -13,18 +13,30 @@ sync:
 lock:
 	uv lock
 
-run-pipeline:
-	uv run dvc repro
-
 clean:
 	find . -type d -name "__pycache__" -exec rm -r {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete
 	find . -type f -name "*.pyo" -delete
 	find . -type f -name ".DS_Store" -delete
 
-test:
-	@echo "No tests defined yet"
-
 setup: install
 	@echo "Project setup complete"
+
+dvc-run-pipeline:
+	uv run dvc repro
+
+dvc-push: ## push dvc data
+	uv run dvc push
+
+dvc-pull: ## pull dvc data
+	uv run dvc pull
+
+dvc-status: ## check DVC status
+	uv run dvc status
+
+dvc-dag:
+	uv run dvc dag
+
+dvc-pipeline-and-push: run-pipeline push ## Run pipeline and push results
+	@echo "Pipeline completed and pushed to remote"
 
