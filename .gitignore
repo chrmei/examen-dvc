@@ -8,14 +8,18 @@ __pycache__/
 venv/
 
 # DVC (exclude .dvc directory but keep .dvc/config tracked)
-.dvc/*
+#.dvc/*
 !.dvc/config
 !dvc.yaml
 !dvc.lock
 
 # Data files
 data/raw/*
+!data/raw/*.dvc
+!data/raw/.gitkeep
 data/processed/*
+!data/processed/*.dvc
+!data/processed/.gitkeep
 
 # Model files
 models/**/*.pkl
