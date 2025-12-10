@@ -53,6 +53,7 @@ stages:
     - src/models/training.py
     outs:
     - models/models/trained_model.pkl
+    - models/models/trained_model_with_history.pkl
   evaluate:
     cmd: uv run python src/models/evaluate.py
     deps:
