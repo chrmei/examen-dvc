@@ -1,17 +1,8 @@
-"""
-Data Splitting Script
-
-This script loads the feature-engineered mineral flotation data, extracts the target variable,
-and splits the data into training and testing sets (80/20 split).
-
-Input: data/processed/raw_engineered.csv
-Output: data/processed/X_train.csv, X_test.csv, y_train.csv, y_test.csv
-"""
-
 import pandas as pd
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 import argparse
+import numpy as np
 
 
 def split_data(
@@ -38,12 +29,10 @@ def split_data(
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    # Load raw data
     print(f"Loading data from {input_path}...")
     df = pd.read_csv(input_path)
     print(f"Data shape: {df.shape}")
 
-    # Validate data quality
     print("\nValidating data quality...")
     
     # Check for missing values
@@ -57,7 +46,6 @@ def split_data(
     # Check for infinite values in numeric columns
     numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns
     if len(numeric_cols) > 0:
-        import numpy as np
         inf_values = np.isinf(df[numeric_cols]).sum().sum()
         if inf_values > 0:
             raise ValueError(
@@ -67,13 +55,10 @@ def split_data(
     
     print("✓ Data validation passed: no missing or infinite values")
 
-    # Extract target variable (last column: silica_concentrate)
     target_column = df.columns[-1]
     print(f"Target variable: {target_column}")
 
-    # Separate features and target
-    # Exclude the date column (first column) and target column (last column)
-    feature_columns = df.columns[1:-1]  # Skip date and target
+    feature_columns = df.columns[1:-1]
     X = df[feature_columns]
     y = df[target_column]
 
@@ -81,7 +66,6 @@ def split_data(
     print(f"Number of features: {len(feature_columns)}")
     print(f"Target variable range: [{y.min():.3f}, {y.max():.3f}]")
 
-    # Split into train and test sets
     print(
         f"\nSplitting data into train/test sets ({1-test_size:.0%}/{test_size:.0%})..."
     )
@@ -92,7 +76,6 @@ def split_data(
     print(f"Training set size: {len(X_train)} ({len(X_train)/len(df)*100:.1f}%)")
     print(f"Test set size: {len(X_test)} ({len(X_test)/len(df)*100:.1f}%)")
 
-    # Save split data
     print(f"\nSaving split data to {output_dir}...")
     X_train.to_csv(output_path / "X_train.csv", index=False)
     X_test.to_csv(output_path / "X_test.csv", index=False)
@@ -105,7 +88,6 @@ def split_data(
     print(f"  - {output_path / 'y_train.csv'}")
     print(f"  - {output_path / 'y_test.csv'}")
 
-    # Print summary statistics
     print("\n" + "=" * 60)
     print("SUMMARY STATISTICS")
     print("=" * 60)

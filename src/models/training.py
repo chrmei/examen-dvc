@@ -1,17 +1,5 @@
-"""
-Model Training Script
-
-This script loads the best hyperparameters from grid search and trains a final
-XGBoost model on the normalized training data. The trained model and training
-history are saved for use in evaluation and inference.
-
-Input: models/data/best_params.pkl, data/processed/X_train_scaled.csv, data/processed/y_train.csv
-Output: models/models/trained_model.pkl, models/models/trained_model_with_history.pkl
-"""
-
 import argparse
 from pathlib import Path
-
 import numpy as np
 import pandas as pd
 from joblib import dump, load
@@ -53,7 +41,6 @@ def train_model(
     input_path = Path(input_dir)
     best_params_file = Path(best_params_path)
 
-    # Load best parameters
     print(f"Loading best parameters from {best_params_path}...")
     if not best_params_file.exists():
         raise FileNotFoundError(
@@ -67,7 +54,6 @@ def train_model(
     for param, value in best_params.items():
         print(f"  {param}: {value}")
 
-    # Load normalized training data
     print(f"\nLoading normalized training data from {input_dir}...")
     X_train_scaled = pd.read_csv(input_path / "X_train_scaled.csv")
     y_train = pd.read_csv(input_path / "y_train.csv").squeeze()
@@ -75,10 +61,8 @@ def train_model(
     print(f"Training set shape: {X_train_scaled.shape}")
     print(f"Target variable shape: {y_train.shape}")
 
-    # Validate data quality
     print("\nValidating data quality...")
     
-    # Check for missing values
     train_missing = X_train_scaled.isna().sum().sum()
     y_missing = y_train.isna().sum()
     
@@ -94,9 +78,7 @@ def train_model(
             "Please ensure data is properly preprocessed."
         )
     
-    # Check for infinite values
     train_inf = np.isinf(X_train_scaled.select_dtypes(include=[np.number])).sum().sum()
-    # Handle y_train as Series or array
     if isinstance(y_train, pd.Series):
         y_inf = np.isinf(y_train).sum()
     else:
@@ -116,8 +98,6 @@ def train_model(
     
     print("✓ Data validation passed: no missing or infinite values")
 
-    # Split training data for validation tracking
-    
     print("\n" + "=" * 60)
     print("PREPARING TRAINING DATA")
     print("=" * 60)
@@ -134,25 +114,18 @@ def train_model(
     print(f"Training set for fitting: {X_train_fit.shape}")
     print(f"Validation set for tracking: {X_val.shape}")
 
-    # Initialize model with best parameters
     print("\n" + "=" * 60)
     print("INITIALIZING MODEL")
     print("=" * 60)
     print("Model: XGBRegressor")
     
-    # Copy best parameters (already in XGBoost format from grid_search)
     xgb_params = best_params.copy()
-    
-    # Extract n_estimators for num_boost_round
     num_boost_round = xgb_params.pop("n_estimators", 100)
     
-    # Set XGBoost-specific parameters for native API
-    # Note: random_state becomes seed in native API
     xgb_params["seed"] = random_state
-    xgb_params["objective"] = "reg:squarederror"  # For regression
-    xgb_params["eval_metric"] = "rmse"  # Track RMSE during training
+    xgb_params["objective"] = "reg:squarederror"
+    xgb_params["eval_metric"] = "rmse"
     
-    # Remove sklearn-specific parameters if present
     xgb_params.pop("random_state", None)
     
     print("\nModel parameters:")
@@ -160,37 +133,31 @@ def train_model(
         print(f"  {param}: {value}")
     print(f"  n_estimators: {num_boost_round}")
 
-    # Train model with evaluation set for learning curve tracking
     print("\n" + "=" * 60)
     print("TRAINING MODEL")
     print("=" * 60)
     print("Training with evaluation set tracking...")
     
-    # Create DMatrix for XGBoost (more efficient)
     dtrain = xgb.DMatrix(X_train_fit, label=y_train_fit)
     dval = xgb.DMatrix(X_val, label=y_val)
     
-    # Dictionary to store evaluation results
     evals_result = {}
     
-    # Train model with evaluation callback
     model = xgb.train(
         params=xgb_params,
         dtrain=dtrain,
         num_boost_round=num_boost_round,
         evals=[(dtrain, "train"), (dval, "validation")],
         evals_result=evals_result,
-        verbose_eval=False,  # Evaluation will be done in evaluate.py
+        verbose_eval=False,
     )
     
     print("✓ Model training completed successfully")
 
-    # Save trained model (without history)
     print(f"\nSaving trained model to {output_path}...")
     dump(model, output_path)
     print(f"✓ Successfully saved trained model to {output_path}")
 
-    # Save model with training history for evaluation
     print(f"\nSaving model with training history to {history_path}...")
     training_history = {
         "model": model,

@@ -1,21 +1,6 @@
-"""
-Model Evaluation Script
-
-This script loads a trained model and evaluates its performance on both training
-and test sets. It calculates various regression metrics (MSE, RMSE, R², MAE),
-plots the learning curve if training history is available, and saves both
-predictions and metrics for analysis.
-
-Input: models/models/trained_model.pkl (or trained_model_with_history.pkl),
-       data/processed/X_train_scaled.csv, data/processed/y_train.csv,
-       data/processed/X_test_scaled.csv, data/processed/y_test.csv
-Output: data/processed/predictions.csv, metrics/scores.json, metrics/learning_curve.png
-"""
-
 import argparse
 import json
 from pathlib import Path
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -62,7 +47,6 @@ def evaluate_model(
     metrics_file.parent.mkdir(parents=True, exist_ok=True)
     learning_curve_file.parent.mkdir(parents=True, exist_ok=True)
 
-    # Try to load training history
     if history_path is None:
         history_path = "models/models/trained_model_with_history.pkl"
     
@@ -84,7 +68,6 @@ def evaluate_model(
         print(f"⚠ Training history not found at {history_path}, loading model only...")
         model = load(model_path)
 
-    # Load trained model if not already loaded
     if not isinstance(model, xgb.core.Booster) and not hasattr(model, 'predict'):
         print(f"Loading trained model from {model_path}...")
         if not model_file.exists():
@@ -96,12 +79,10 @@ def evaluate_model(
     
     print("✓ Model loaded successfully")
 
-    # Load training data for evaluation
     print(f"\nLoading training data from {input_dir}...")
     X_train_scaled = pd.read_csv(input_path / "X_train_scaled.csv")
     y_train = pd.read_csv(input_path / "y_train.csv").squeeze()
 
-    # Load test data
     print(f"Loading test data from {input_dir}...")
     X_test_scaled = pd.read_csv(input_path / "X_test_scaled.csv")
     y_test = pd.read_csv(input_path / "y_test.csv").squeeze()
@@ -109,10 +90,8 @@ def evaluate_model(
     print(f"Training set shape: {X_train_scaled.shape}")
     print(f"Test set shape: {X_test_scaled.shape}")
 
-    # Validate data quality
     print("\nValidating data quality...")
     
-    # Check for missing values
     train_missing = X_train_scaled.isna().sum().sum()
     test_missing = X_test_scaled.isna().sum().sum()
     y_train_missing = y_train.isna().sum()
@@ -130,7 +109,6 @@ def evaluate_model(
             "Please ensure data is properly preprocessed."
         )
     
-    # Check for infinite values
     train_inf = np.isinf(X_train_scaled.select_dtypes(include=[np.number])).sum().sum()
     test_inf = np.isinf(X_test_scaled.select_dtypes(include=[np.number])).sum().sum()
     
@@ -158,7 +136,6 @@ def evaluate_model(
     
     print("✓ Data validation passed: no missing or infinite values")
 
-    # Plot learning curve if training history is available
     if evals_result is not None:
         print("\n" + "=" * 60)
         print("PLOTTING LEARNING CURVE")
@@ -178,12 +155,10 @@ def evaluate_model(
         plt.grid(True, alpha=0.3)
         plt.tight_layout()
         
-        # Save plot
         plt.savefig(learning_curve_path, dpi=300, bbox_inches="tight")
         print(f"✓ Learning curve saved to {learning_curve_path}")
         plt.close()
         
-        # Display convergence statistics
         print("\nConvergence Statistics:")
         print(f"  Initial Training RMSE:   {train_rmse[0]:.6f}")
         print(f"  Final Training RMSE:      {train_rmse[-1]:.6f}")
@@ -192,19 +167,16 @@ def evaluate_model(
         print(f"  Training Improvement:    {train_rmse[0] - train_rmse[-1]:.6f}")
         print(f"  Validation Improvement:  {val_rmse[0] - val_rmse[-1]:.6f}")
         
-        # Check for overfitting
         final_gap = val_rmse[-1] - train_rmse[-1]
         if final_gap > 0.1:
             print(f"\n⚠ Warning: Potential overfitting detected (validation RMSE is {final_gap:.6f} higher than training RMSE)")
         else:
             print(f"\n✓ Model shows good generalization (validation gap: {final_gap:.6f})")
 
-    # Evaluate on training set
     print("\n" + "=" * 60)
     print("EVALUATING ON TRAINING SET")
     print("=" * 60)
     
-    # Handle XGBoost Booster objects (from native API) vs sklearn estimators
     if isinstance(model, xgb.core.Booster):
         dtrain = xgb.DMatrix(X_train_scaled)
         y_train_pred = model.predict(dtrain)
@@ -224,7 +196,6 @@ def evaluate_model(
     print(f"MAE:  {train_mae:.6f}")
     print(f"R²:   {train_r2:.6f}")
 
-    # Evaluate on test set
     print("\n" + "=" * 60)
     print("EVALUATING ON TEST SET")
     print("=" * 60)
@@ -238,33 +209,23 @@ def evaluate_model(
     
     print(f"✓ Predictions completed: {len(y_test_pred)} predictions")
 
-    # Calculate evaluation metrics
     print("\n" + "=" * 60)
     print("CALCULATING EVALUATION METRICS")
     print("=" * 60)
     
-    # Mean Squared Error (MSE)
     test_mse = np.mean((y_test - y_test_pred) ** 2)
-    
-    # Root Mean Squared Error (RMSE)
     test_rmse = np.sqrt(test_mse)
-    
-    # Mean Absolute Error (MAE)
     test_mae = np.mean(np.abs(y_test - y_test_pred))
-    
-    # R² Score (Coefficient of Determination)
     ss_res_test = np.sum((y_test - y_test_pred) ** 2)
     ss_tot_test = np.sum((y_test - np.mean(y_test)) ** 2)
     test_r2 = 1 - (ss_res_test / ss_tot_test) if ss_tot_test != 0 else 0.0
 
-    # Display metrics
     print("\nTest Set Performance Metrics:")
     print(f"MSE:  {test_mse:.6f}")
     print(f"RMSE: {test_rmse:.6f}")
     print(f"MAE:  {test_mae:.6f}")
     print(f"R²:   {test_r2:.6f}")
 
-    # Create predictions DataFrame (test set)
     predictions_df = pd.DataFrame({
         "y_true": y_test,
         "y_pred": y_test_pred,
@@ -272,12 +233,10 @@ def evaluate_model(
         "abs_residual": np.abs(y_test - y_test_pred),
     })
 
-    # Save predictions
     print(f"\nSaving predictions to {predictions_path}...")
     predictions_df.to_csv(predictions_path, index=False)
     print(f"✓ Successfully saved predictions to {predictions_path}")
 
-    # Prepare metrics dictionary
     metrics = {
         "train": {
             "mse": float(train_mse),
@@ -293,13 +252,11 @@ def evaluate_model(
         },
     }
 
-    # Save metrics
     print(f"Saving metrics to {metrics_path}...")
     with open(metrics_path, "w") as f:
         json.dump(metrics, f, indent=2)
     print(f"✓ Successfully saved metrics to {metrics_path}")
 
-    # Display summary statistics of predictions
     print("\n" + "=" * 60)
     print("PREDICTION SUMMARY STATISTICS (TEST SET)")
     print("=" * 60)

@@ -1,17 +1,5 @@
-"""
-Data Normalization Script
-
-This script loads the train/test split data and applies StandardScaler normalization
-to the feature matrices. The scaler is fitted on the training data and then applied
-to both training and test sets.
-
-Input: data/processed/X_train.csv, X_test.csv, y_train.csv, y_test.csv
-Output: data/processed/X_train_scaled.csv, X_test_scaled.csv
-"""
-
 import argparse
 from pathlib import Path
-
 import numpy as np
 import pandas as pd
 from joblib import dump
@@ -42,7 +30,6 @@ def normalize_data(
     scaler_file = Path(scaler_path)
     scaler_file.parent.mkdir(parents=True, exist_ok=True)
 
-    # Load train/test split data
     print(f"Loading data from {input_dir}...")
     X_train = pd.read_csv(input_path / "X_train.csv")
     X_test = pd.read_csv(input_path / "X_test.csv")
@@ -50,10 +37,8 @@ def normalize_data(
     print(f"Training set shape: {X_train.shape}")
     print(f"Test set shape: {X_test.shape}")
 
-    # Validate data quality before scaling
     print("\nValidating data quality...")
     
-    # Check for missing values
     train_missing = X_train.isna().sum().sum()
     test_missing = X_test.isna().sum().sum()
     
@@ -69,7 +54,6 @@ def normalize_data(
             "Please run validate_data.py to handle missing values before normalization."
         )
     
-    # Check for infinite values
     train_inf = np.isinf(X_train.select_dtypes(include=[np.number])).sum().sum()
     test_inf = np.isinf(X_test.select_dtypes(include=[np.number])).sum().sum()
     
@@ -87,19 +71,15 @@ def normalize_data(
     
     print("✓ Data validation passed: no missing or infinite values")
 
-    # Initialize StandardScaler
     print("\nInitializing StandardScaler...")
     scaler = StandardScaler()
 
-    # Fit scaler on training data only
     print("Fitting StandardScaler on training data...")
     X_train_scaled = scaler.fit_transform(X_train)
 
-    # Transform test data using the scaler fitted on training data
     print("Transforming test data...")
     X_test_scaled = scaler.transform(X_test)
 
-    # Convert back to DataFrame with original column names
     X_train_scaled_df = pd.DataFrame(
         X_train_scaled, columns=X_train.columns, index=X_train.index
     )
@@ -107,12 +87,10 @@ def normalize_data(
         X_test_scaled, columns=X_test.columns, index=X_test.index
     )
 
-    # Save normalized datasets
     print(f"\nSaving normalized datasets to {output_dir}...")
     X_train_scaled_df.to_csv(output_path / "X_train_scaled.csv", index=False)
     X_test_scaled_df.to_csv(output_path / "X_test_scaled.csv", index=False)
 
-    # Persist the fitted scaler for inference / evaluation reuse
     print(f"Persisting fitted scaler to {scaler_file}...")
     dump(scaler, scaler_file)
 
@@ -120,7 +98,6 @@ def normalize_data(
     print(f"  - {output_path / 'X_train_scaled.csv'}")
     print(f"  - {output_path / 'X_test_scaled.csv'}")
 
-    # Print summary statistics
     print("\n" + "=" * 60)
     print("SUMMARY STATISTICS")
     print("=" * 60)

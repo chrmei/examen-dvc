@@ -1,16 +1,5 @@
-"""
-Grid Search Script
-
-This script performs hyperparameter tuning using GridSearchCV to find the best
-parameters for an XGBoost model. The best parameters are saved for use in model training.
-
-Input: data/processed/X_train_scaled.csv, data/processed/y_train.csv
-Output: models/data/best_params.pkl
-"""
-
 import argparse
 from pathlib import Path
-
 import numpy as np
 import pandas as pd
 from joblib import dump
@@ -46,7 +35,6 @@ def grid_search(
     output_file.parent.mkdir(parents=True, exist_ok=True)
     input_path = Path(input_dir)
 
-    # Load normalized training data
     print(f"Loading normalized training data from {input_dir}...")
     X_train_scaled = pd.read_csv(input_path / "X_train_scaled.csv")
     y_train = pd.read_csv(input_path / "y_train.csv").squeeze()
@@ -54,10 +42,8 @@ def grid_search(
     print(f"Training set shape: {X_train_scaled.shape}")
     print(f"Target variable shape: {y_train.shape}")
 
-    # Validate data quality
     print("\nValidating data quality...")
     
-    # Check for missing values
     train_missing = X_train_scaled.isna().sum().sum()
     y_missing = y_train.isna().sum()
     
@@ -73,9 +59,8 @@ def grid_search(
             "Please ensure data is properly preprocessed."
         )
     
-    # Check for infinite values
+    # Check for infinite values again to make sure the grid search does run smoothly
     train_inf = np.isinf(X_train_scaled.select_dtypes(include=[np.number])).sum().sum()
-    # Handle y_train as Series or array
     if isinstance(y_train, pd.Series):
         y_inf = np.isinf(y_train).sum()
     else:
@@ -95,7 +80,6 @@ def grid_search(
     
     print("✓ Data validation passed: no missing or infinite values")
 
-    # Display target variable statistics
     print("\n" + "=" * 60)
     print("TARGET VARIABLE STATISTICS")
     print("=" * 60)
@@ -104,7 +88,6 @@ def grid_search(
     print(f"Min:  {y_train.min():.3f}")
     print(f"Max:  {y_train.max():.3f}")
 
-    # Initialize XGBoost
     print("\n" + "=" * 60)
     print("INITIALIZING GRID SEARCH")
     print("=" * 60)
@@ -112,14 +95,12 @@ def grid_search(
     print(f"Cross-validation folds: {cv}")
     print(f"Parallel jobs: {n_jobs}")
 
-    # Define parameter grid for XGBoost
-    # Balanced grid covering key hyperparameters for regression
     param_grid = {
         "n_estimators": [100, 200, 300, 500],
         "max_depth": [3, 5, 7],
         "learning_rate": [0.01, 0.05, 0.1],
         "subsample": [0.8, 0.9, 1.0],
-        "min_child_weight": [1, 2, 4],  # XGBoost equivalent of min_samples_split/leaf
+        "min_child_weight": [1, 2, 4],
     }
 
     print("\nParameter grid:")
@@ -130,14 +111,12 @@ def grid_search(
     print(f"\nTotal parameter combinations: {total_combinations}")
     print(f"Total fits (with CV): {total_combinations * cv}")
 
-    # Initialize base model using XGBoost sklearn API
     base_model = xgb.XGBRegressor(
         random_state=random_state,
-        objective="reg:squarederror",  # For regression
-        eval_metric="rmse",  # Evaluation metric
+        objective="reg:squarederror",
+        eval_metric="rmse",
     )
 
-    # Perform grid search with cross-validation
     print("\n" + "=" * 60)
     print("RUNNING GRID SEARCH")
     print("=" * 60)
@@ -147,16 +126,14 @@ def grid_search(
         estimator=base_model,
         param_grid=param_grid,
         cv=cv,
-        scoring="neg_mean_squared_error",  # Use negative MSE (higher is better)
+        scoring="neg_mean_squared_error",
         n_jobs=n_jobs,
         verbose=1,
         return_train_score=True,
     )
 
-    # Fit grid search
     grid_search_cv.fit(X_train_scaled, y_train)
 
-    # Get best parameters
     best_params = grid_search_cv.best_params_
     best_score = grid_search_cv.best_score_
 
@@ -169,7 +146,6 @@ def grid_search(
     for param, value in best_params.items():
         print(f"  {param}: {value}")
 
-    # Display top 5 parameter combinations
     results_df = pd.DataFrame(grid_search_cv.cv_results_)
     top_5 = results_df.nlargest(5, "mean_test_score")[
         ["mean_test_score", "std_test_score"]
@@ -180,12 +156,10 @@ def grid_search(
     print("\nTop 5 parameter combinations:")
     print(top_5.to_string())
 
-    # Save best parameters
     print(f"\nSaving best parameters to {output_path}...")
     dump(best_params, output_path)
     print(f"✓ Successfully saved best parameters to {output_path}")
 
-    # Also save the full grid search results for reference (optional)
     results_path = output_file.parent / "grid_search_results.csv"
     results_df.to_csv(results_path, index=False)
     print(f"✓ Grid search results saved to {results_path}")
