@@ -58,7 +58,7 @@ def split_data(
     target_column = df.columns[-1]
     print(f"Target variable: {target_column}")
 
-    feature_columns = df.columns[1:-1]
+    feature_columns = [col for col in df.columns if col not in ['date', 'silica_concentrate']]
     X = df[feature_columns]
     y = df[target_column]
 
