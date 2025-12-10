@@ -6,7 +6,7 @@ This repository implements a machine learning workflow for mineral flotation dat
 
 ## Project Status
 
-✅ **Complete** - All core scripts and DVC pipeline stages are implemented and functional:
+The following scripts and DVC pipeline stages are implemented and functional:
 - Data validation (`src/data/validate_data.py`)
 - Feature engineering (`src/data/feature_engineering.py`)
 - Data splitting (`src/data/data_split.py`)
@@ -16,6 +16,8 @@ This repository implements a machine learning workflow for mineral flotation dat
 - Model evaluation (`src/models/evaluate.py`)
 
 ⚠️ **Note on Time-Dependent Features**: While the feature engineering script supports optional time-series cyclic features (via `--use-time-features` flag), the complete end-to-end workflow (creation, gridsearch, training, evaluation) with time-dependent data is not currently implemented as a separate pipeline flow. This could be added in the future to enable model comparison between time-series and non-time-series variants.
+
+⚠️ **Note on Data Pipeline differences to given requirements**: The file scores.json have been added to DVC to track each new experiment. Also, the "raw.csv" file has been added to DVC / DagsHub Storage for my reference.
 
 ## Project Structure
 
@@ -111,7 +113,7 @@ dvc repro train
 The raw dataset can be downloaded from:
 https://datascientest-mlops.s3.eu-west-1.amazonaws.com/mlops_dvc_fr/raw.csv
 
-Place it in `data/raw/raw.csv` before running the pipeline.
+Place it in `data/raw/raw.csv` before running the pipeline - or use the DVC tracked file.
 
 ## DVC & DagsHub Setup
 
@@ -213,12 +215,3 @@ dvc push
 - **Strict Train/Test Separation**: All preprocessing fitted only on training data to prevent data leakage
 - **Scaler Persistence**: Fitted scaler saved and reused for inference
 - **Data Validation**: Automatic handling of missing values, invalid dates, and data quality issues
-- **Reproducible Pipeline**: DVC ensures reproducibility across environments
-
-## Submission
-
-The exam submission will be the link to your DagsHub repository. Make sure to add `licence.pedago` as a collaborator with read-only access for grading.
-
-## Documentation
-
-For detailed implementation steps and execution plan, refer to `task/Plan.md`.

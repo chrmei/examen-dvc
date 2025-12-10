@@ -1,14 +1,3 @@
-"""
-Data Validation and Cleaning Script
-
-This script validates and cleans the raw mineral flotation data before feature engineering.
-It handles missing values, validates date formats, checks data types, and identifies
-potential data quality issues that could block automation.
-
-Input: data/raw/raw.csv
-Output: data/processed/raw_validated.csv
-"""
-
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -48,7 +37,6 @@ def validate_and_clean_data(
     output_file = Path(output_path)
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
-    # Initialize validation report
     validation_report = {
         "original_shape": None,
         "final_shape": None,
@@ -60,7 +48,6 @@ def validate_and_clean_data(
         "errors": [],
     }
 
-    # Load raw data
     print(f"Loading data from {input_path}...")
     try:
         df = pd.read_csv(input_path)
@@ -71,7 +58,6 @@ def validate_and_clean_data(
         validation_report["errors"].append(error_msg)
         raise FileNotFoundError(error_msg)
 
-    # Check if required columns exist
     print("\nValidating column structure...")
     expected_columns = [
         "date",
@@ -94,24 +80,20 @@ def validate_and_clean_data(
     
     print(f"✓ All required columns present ({len(expected_columns)} columns)")
 
-    # Validate and clean date column
     print("\nValidating date column...")
     if "date" not in df.columns:
         error_msg = "Date column not found in dataset"
         validation_report["errors"].append(error_msg)
         raise ValueError(error_msg)
 
-    # Check for missing dates
     missing_dates_before = df["date"].isna().sum()
     if missing_dates_before > 0:
         warning_msg = f"Found {missing_dates_before} missing date values"
         validation_report["warnings"].append(warning_msg)
         print(f"⚠ {warning_msg}")
 
-    # Convert date column to datetime with error handling
     print("Converting date column to datetime format...")
     try:
-        # Use errors='coerce' to convert invalid dates to NaT
         if date_format == "infer":
             df["date"] = pd.to_datetime(
                 df["date"], errors="coerce"
@@ -119,7 +101,6 @@ def validate_and_clean_data(
         else:
             df["date"] = pd.to_datetime(df["date"], format=date_format, errors="coerce")
         
-        # Count invalid dates (NaT values)
         invalid_dates = df["date"].isna().sum()
         validation_report["invalid_dates"] = invalid_dates
         
@@ -128,7 +109,6 @@ def validate_and_clean_data(
             validation_report["warnings"].append(warning_msg)
             print(f"⚠ {warning_msg}")
             
-            # Show examples of invalid dates if any
             invalid_date_indices = df[df["date"].isna()].index[:5]
             if len(invalid_date_indices) > 0:
                 print("  Examples of invalid dates:")
@@ -140,7 +120,6 @@ def validate_and_clean_data(
         validation_report["errors"].append(error_msg)
         raise ValueError(error_msg)
 
-    # Check for duplicate rows
     print("\nChecking for duplicate rows...")
     duplicates = df.duplicated().sum()
     if duplicates > 0:
@@ -150,7 +129,6 @@ def validate_and_clean_data(
         df = df.drop_duplicates()
         print(f"✓ Removed {duplicates} duplicate rows")
 
-    # Validate and handle missing values in numeric columns
     print("\nChecking for missing values in numeric columns...")
     numeric_columns = [
         "ave_flot_air_flow",
@@ -177,7 +155,6 @@ def validate_and_clean_data(
         if missing_count > 0:
             print(f"  {col}: {missing_count} missing values ({missing_count/len(df)*100:.2f}%)")
 
-    # Handle missing values based on strategy
     total_missing = sum([v["count"] for v in validation_report["missing_values"].values()])
     if total_missing > 0:
         print(f"\nHandling missing values using strategy: '{missing_value_strategy}'...")
@@ -185,7 +162,6 @@ def validate_and_clean_data(
         rows_before = len(df)
         
         if missing_value_strategy == "drop":
-            # Drop rows with any missing values
             df = df.dropna()
             rows_dropped = rows_before - len(df)
             validation_report["rows_dropped"] = rows_dropped
@@ -221,19 +197,16 @@ def validate_and_clean_data(
             validation_report["warnings"].append(warning_msg)
             print(f"⚠ {warning_msg}")
 
-    # Validate numeric data types and check for non-numeric values
     print("\nValidating numeric columns...")
     for col in numeric_columns:
         if col not in df.columns:
             continue
             
-        # Check if column is numeric
         if not pd.api.types.is_numeric_dtype(df[col]):
             warning_msg = f"Column {col} is not numeric (type: {df[col].dtype})"
             validation_report["warnings"].append(warning_msg)
             print(f"⚠ {warning_msg}")
             
-            # Try to convert to numeric
             try:
                 df[col] = pd.to_numeric(df[col], errors="coerce")
                 print(f"  Converted {col} to numeric")
@@ -242,20 +215,17 @@ def validate_and_clean_data(
                 validation_report["errors"].append(error_msg)
                 print(f"✗ {error_msg}")
 
-    # Check for extreme outliers (values that are clearly wrong)
     print("\nChecking for extreme outliers...")
     for col in numeric_columns:
         if col not in df.columns:
             continue
             
-        # Check for infinite values
         inf_count = np.isinf(df[col]).sum()
         if inf_count > 0:
             warning_msg = f"Column {col} contains {inf_count} infinite values"
             validation_report["warnings"].append(warning_msg)
             print(f"⚠ {warning_msg}")
             df[col] = df[col].replace([np.inf, -np.inf], np.nan)
-            # Fill infinite values based on strategy
             if missing_value_strategy == "mean":
                 df[col] = df[col].fillna(df[col].mean())
             elif missing_value_strategy == "median":
@@ -265,7 +235,6 @@ def validate_and_clean_data(
             elif missing_value_strategy == "drop":
                 df = df.dropna(subset=[col])
         
-        # Check for negative values in columns that should be positive
         positive_only_cols = [
             "ave_flot_air_flow",
             "ave_flot_level",
@@ -283,26 +252,21 @@ def validate_and_clean_data(
                 warning_msg = f"Column {col} contains {negative_count} negative values (should be positive)"
                 validation_report["warnings"].append(warning_msg)
                 print(f"⚠ {warning_msg}")
-                # Optionally set negative values to 0 or drop rows
                 if missing_value_strategy == "drop":
                     df = df[df[col] >= 0]
                 else:
                     df.loc[df[col] < 0, col] = 0
 
-    # Ensure date column is still valid after all operations
     if df["date"].isna().sum() > 0:
         if missing_value_strategy == "drop":
             df = df.dropna(subset=["date"])
             print("✓ Dropped rows with invalid dates")
         else:
-            # Fill invalid dates with forward fill or backward fill
             df["date"] = df["date"].ffill().bfill()
             if df["date"].isna().sum() > 0:
-                # If still missing, drop remaining rows
                 df = df.dropna(subset=["date"])
                 print("✓ Dropped rows with invalid dates that couldn't be filled")
 
-    # Final validation: ensure no missing values remain
     remaining_missing = df.isna().sum().sum()
     if remaining_missing > 0:
         warning_msg = f"Warning: {remaining_missing} missing values still remain after cleaning"
@@ -311,11 +275,9 @@ def validate_and_clean_data(
     else:
         print("✓ No missing values remaining")
 
-    # Update validation report
     validation_report["final_shape"] = df.shape
     validation_report["columns_checked"] = list(df.columns)
 
-    # Print validation summary
     print("\n" + "=" * 60)
     print("VALIDATION SUMMARY")
     print("=" * 60)
@@ -336,7 +298,6 @@ def validate_and_clean_data(
         for error in validation_report["errors"]:
             print(f"  ✗ {error}")
 
-    # Save validated dataset
     print(f"\nSaving validated dataset to {output_path}...")
     df.to_csv(output_path, index=False)
     print(f"✓ Successfully saved validated dataset to {output_path}")
